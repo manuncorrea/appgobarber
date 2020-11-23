@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState   } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { format } from 'date-fns';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -51,7 +51,7 @@ export interface Provider {
 const CreateAppointment: React.FC = () => {
   const { user } = useAuth();
   const route = useRoute();
-  const { goBack } = useNavigation();
+  const { goBack, navigate } = useNavigation();
 
   const routeParams = route.params as RouteParams;
   const [availability, setAvailability] = useState<AvailabilityItem[]>([]);
@@ -127,6 +127,31 @@ const CreateAppointment: React.FC = () => {
         };
       });
   }, [availability]);
+
+  const handleSelectHour = useCallback((hour: number) => {
+    setSelectedHour(hour);
+  }, []);
+
+  const handleCreateAppoitment = useCallback(async () => {
+    try {
+      const date = new Date(selectedDate);
+
+      date.setHours(selectedHour);
+      date.setMinutes(0);
+
+      await api.post('appointments', {
+        provider_id: selectedProvider,
+        date,
+      });
+
+      navigate('AppointmentCreated', { date: date.getTime() });
+    } catch (e) {
+      Alert.alert(
+        'Erro ao criar agendamento',
+        'Ocorreu um erro ao tentar criar agendamento, tente novamente',
+      );
+    }
+  }, [selectedProvider, selectedDate, selectedHour, navigate]);
   
   return(
     <Container>
@@ -141,48 +166,91 @@ const CreateAppointment: React.FC = () => {
         <UserAvatar source={{ uri: user.avatar_url }} />
 
       </Header>
-      <ProvidersListContainer>
-        <ProvidersList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={providers}
-          keyExtractor={provider => provider.id}
-          renderItem={({ item: provider }) => (
-            <ProviderContainer
-              onPress={() => handleSelectProvider(provider.id)}
-              selected={provider.id === selectedProvider}
-            >
-              <ProviderAvatar source={{ uri: provider.avatar_url }} />
-              <ProviderName selected={provider.id === selectedProvider}>{provider.name}</ProviderName>
+      <Content>
+        <ProvidersListContainer>
+          <ProvidersList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={providers}
+            keyExtractor={provider => provider.id}
+            renderItem={({ item: provider }) => (
+              <ProviderContainer
+                onPress={() => handleSelectProvider(provider.id)}
+                selected={provider.id === selectedProvider}
+              >
+                <ProviderAvatar source={{ uri: provider.avatar_url }} />
+                <ProviderName selected={provider.id === selectedProvider}>{provider.name}</ProviderName>
 
-            </ProviderContainer>
-          )}
-        />
-      </ProvidersListContainer>
+              </ProviderContainer>
+            )}
+          />
+        </ProvidersListContainer>
 
-      <OpenDatePickerButton onPress={handleToggleDatePicker}>
-        <OpenDatePickerButtonText>Selecionar outra data</OpenDatePickerButtonText>
-      </OpenDatePickerButton>
+        <OpenDatePickerButton onPress={handleToggleDatePicker}>
+          <OpenDatePickerButtonText>Selecionar outra data</OpenDatePickerButtonText>
+        </OpenDatePickerButton>
 
-      <Calendar>
-        <Title>Escolha a data</Title>
-        {showDatePicker && (
-            <DateTimePicker
-              mode="date"
-              display="calendar"
-              onChange={handleDateChanged}
-              value={selectedDate}
-            />
-          )}
-      </Calendar>
+        <Calendar>
+          <Title>Escolha a data</Title>
+          {showDatePicker && (
+              <DateTimePicker
+                mode="date"
+                display="calendar"
+                onChange={handleDateChanged}
+                value={selectedDate}
+              />
+            )}
+        </Calendar>
 
-      {morningAvailability.map(({ hourFormatted}) => (
-        <Title key={hourFormatted}>{hourFormatted}</Title>
-      ))}
+        <Schedule>
+          <Title>Escolha o horario</Title>
 
-      {afternoonAvailability.map(({ hourFormatted}) => (
-        <Title key={hourFormatted}>{hourFormatted}</Title>
-      ))}
+          <Section>
+            <SectionTitle>Manhã</SectionTitle>
+            <SectionContent>
+                {morningAvailability.map(({ hour, hourFormatted, available }) => (
+                  <Hour
+                    enabled={available}
+                    selected={selectedHour === hour}
+                    available={available}
+                    key={hourFormatted}
+                    onPress={() => handleSelectHour(hour)}
+                    >
+                    <HourText selected={selectedHour === hour}>
+                      {hourFormatted}
+                    </HourText>
+                  </Hour>
+                ))}
+              </SectionContent>
+            </Section>
+
+            <Section>
+              <SectionTitle>Tarde</SectionTitle>
+
+              <SectionContent>
+                {afternoonAvailability.map(
+                  ({ hour, hourFormatted, available }) => (
+                    <Hour
+                      enabled={available}
+                      selected={selectedHour === hour}
+                      available={available}
+                      key={hourFormatted}
+                      onPress={() => handleSelectHour(hour)}
+                      >
+                      <HourText selected={selectedHour === hour}>
+                        {hourFormatted}
+                      </HourText>
+                    </Hour>
+                  ),
+                )}
+              </SectionContent>
+          </Section>
+        </Schedule>
+
+        <CreateAppointmentButton onPress={handleCreateAppoitment}>
+          <CreateAppointmentButtonText>Agendar</CreateAppointmentButtonText>
+        </CreateAppointmentButton>
+      </Content>
 
     </Container>
   );
