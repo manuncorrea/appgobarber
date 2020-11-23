@@ -12,6 +12,7 @@ import {
   BackButton,
   HeaderTitle,
   UserAvatar,
+  Content,
   ProvidersListContainer,
   ProvidersList,
   ProviderContainer,
@@ -19,15 +20,25 @@ import {
   ProviderName,
   Calendar,
   Title,
-  OpenDatePickerButton,
+  OpenDatePickerButton, 
   OpenDatePickerButtonText,
-
+  Schedule,
+  Section,
+  SectionTitle,
+  SectionContent,
+  Hour,
+  HourText,
+  CreateAppointmentButton,
+  CreateAppointmentButtonText,
 } from './styles';
-
-
 
 interface RouteParams {
   providerId: string;
+}
+
+interface AvailabilityItem {
+  hour: number;
+  available: boolean;
 }
 
 export interface Provider {
@@ -42,10 +53,11 @@ const CreateAppointment: React.FC = () => {
   const { goBack } = useNavigation();
 
   const routeParams = route.params as RouteParams;
+  const [availability, setAvailability] = useState<AvailabilityItem[]>([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [selectdProvider, setSelectdProvider] = useState(
+  const [selectedProvider, setSelectedProvider] = useState(
     routeParams.providerId
   );
 
@@ -55,13 +67,27 @@ const CreateAppointment: React.FC = () => {
     });
   }, []);
 
+  useEffect(() => {
+    api
+      .get(`providers/${selectedProvider}/day-availability`, {
+        params: {
+          year: selectedDate.getFullYear(),
+          month: selectedDate.getMonth() + 1,
+          day: selectedDate.getDate(),
+        },
+      })
+      .then(response => {
+        setAvailability(response.data);
+      });
+  }, [selectedDate, selectedProvider]);
+
 
   const navigateBack = useCallback(() => {
     goBack();
   }, [goBack]);
 
   const handleSelectProvider = useCallback((providerId: string ) => {
-    setSelectdProvider(providerId);
+    setSelectedProvider(providerId);
   }, []);
 
   const handleToggleDatePicker = useCallback(() => {
@@ -98,10 +124,10 @@ const CreateAppointment: React.FC = () => {
           renderItem={({ item: provider }) => (
             <ProviderContainer
               onPress={() => handleSelectProvider(provider.id)}
-              selected={provider.id === selectdProvider}
+              selected={provider.id === selectedProvider}
             >
               <ProviderAvatar source={{ uri: provider.avatar_url }} />
-              <ProviderName selected={provider.id === selectdProvider}>{provider.name}</ProviderName>
+              <ProviderName selected={provider.id === selectedProvider}>{provider.name}</ProviderName>
 
             </ProviderContainer>
           )}
